@@ -6,11 +6,16 @@ from flask import Flask
 import threading
 from datetime import datetime, timedelta
 import os
+import sys
 
 # =========================
-# LẤY TOKEN TỪ RENDER ENV
+# TOKEN FROM ENV
 # =========================
 TOKEN = os.getenv("DISCORD_TOKEN")
+
+if TOKEN is None:
+    print("ERROR: DISCORD_TOKEN not found")
+    sys.exit()
 
 # =========================
 # INTENTS
@@ -21,58 +26,58 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =========================
-# WEB SERVER (PORT 8080)
+# WEB SERVER
 # =========================
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Bot is running!"
+    return "Bot is running"
 
 def run_web():
     app.run(host="0.0.0.0", port=8080)
 
-threading.Thread(target=run_web).start()
+threading.Thread(target=run_web, daemon=True).start()
 
 # =========================
-# BOT ONLINE
+# BOT READY
 # =========================
 @bot.event
 async def on_ready():
-    print(f"Bot online: {bot.user}")
+    print(f"✅ Bot online: {bot.user}")
 
 # =========================
-# TEST COMMAND
+# TEST
 # =========================
 @bot.command()
 async def ping(ctx):
     await ctx.send("🏓 pong")
 
 # =========================
-# RESET COMMAND
+# RESET
 # =========================
 @bot.command()
-async def reset(ctx, type1=None, token=None):
+async def reset(ctx, mode=None, token=None):
 
-    if type1 != "token" or token is None:
+    if mode != "token" or token is None:
         await ctx.send("❌ Sai cú pháp\n!reset token YOUR_TOKEN")
         return
 
     try:
         url = f"https://sghhjj.onrender.com/addbot?token={token}"
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
 
         if r.status_code != 200:
             await ctx.send("❌ API lỗi")
             return
 
-        end_time = datetime.now() + timedelta(hours=8)
+        end_time = datetime.utcnow() + timedelta(hours=8)
 
-        msg = await ctx.send("✅ Reset thành công\n⏳ Bắt đầu đếm ngược 8h")
+        msg = await ctx.send("✅ Reset thành công\n⏳ Countdown 8h")
 
         while True:
 
-            remaining = end_time - datetime.now()
+            remaining = end_time - datetime.utcnow()
 
             if remaining.total_seconds() <= 0:
                 await msg.edit(content="✅ Đã hết 8 giờ!")
@@ -82,14 +87,12 @@ async def reset(ctx, type1=None, token=None):
             minutes, seconds = divmod(remainder, 60)
 
             await msg.edit(
-                content=f"✅ Reset thành công\n⏳ Còn lại: **{hours:02}:{minutes:02}:{seconds:02}**"
+                content=f"⏳ Còn: **{hours:02}:{minutes:02}:{seconds:02}**"
             )
 
             await asyncio.sleep(10)
 
     except Exception as e:
         await ctx.send(f"❌ Error: {e}")
-
-# =========================
 
 bot.run(TOKEN)
